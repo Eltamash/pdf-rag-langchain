@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \"import sys; print\\(sys.prefix\\)\")",
+      "Bash(/Users/amjad/Documents/pyprojects/pdf-rag-langchain/.venv/bin/python3 -m pip install -q -r /Users/amjad/Documents/pyprojects/pdf-rag-langchain/requirements.txt)",
+      "Bash(.venv/bin/python3 -c ' *)",
+      "Bash(curl -s http://localhost:1234/v1/models)",
+      "Bash(python3 -c ' *)",
+      "Bash(python3 /private/tmp/claude-501/-Users-amjad-Documents-pyprojects-pdf-rag-langchain/7c35a03a-bf07-43af-8bc8-c9879f17a1d9/scratchpad/make_pdf.py)"
+    ]
+  }
+}
