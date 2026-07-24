@@ -27,7 +27,7 @@ llm = ChatOpenAI(
     api_key=OPENAI_API_KEY,
     base_url=OPENAI_BASE_URL,
     temperature=0,
-    max_tokens=MAX_COMPLETION_TOKENS,
+    max_tokens=MAX_COMPLETION_TOKENS   
 )
 prompt = ChatPromptTemplate.from_messages([
     ("system", """
@@ -53,10 +53,39 @@ def format_docs(documents: list[Document]) -> str:
         for doc in documents
     )
 
-def generate_answer(question: str, documents: list[Document]) -> str:
+#def generate_answer(question: str, documents: list[Document]) -> str:
+#    if not documents:
+#        return "I don't know based on the provided documents."
+#    return (prompt | llm).invoke({"context": format_docs(documents), "question": question}).content
+
+def generate_answer(
+    question: str,
+    documents: list[Document],
+) -> str:
     if not documents:
         return "I don't know based on the provided documents."
-    return (prompt | llm).invoke({"context": format_docs(documents), "question": question}).content
+
+    response = (prompt | llm).invoke(
+        {
+            "context": format_docs(documents),
+            "question": question,
+        }
+    )
+
+    print("\nRAW RESPONSE:")
+    print(response.model_dump())
+
+    print("\nCONTENT:")
+    print(repr(response.content))
+
+    print("\nADDITIONAL KWARGS:")
+    print(response.additional_kwargs)
+
+    print("\nRESPONSE METADATA:")
+    print(response.response_metadata)
+
+    return response.content or "[EMPTY CONTENT]"
+
 
 def fetch_neighbor_chunks(document: Document, neighbor_window: int = 1) -> list[Document]:
     file_hash = document.metadata.get("file_hash")
