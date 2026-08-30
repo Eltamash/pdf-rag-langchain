@@ -2,7 +2,7 @@
 -- Enable pgvector extension
 -- -----------------------------------------------------------------------------
 
-CREATE EXTENSION IF NOT EXISTS vector;
+-- CREATE EXTENSION IF NOT EXISTS vector;
 
 -- -----------------------------------------------------------------------------
 -- Documents table (source level)

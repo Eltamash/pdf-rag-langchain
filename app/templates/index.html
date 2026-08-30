@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>PDF RAG</title>
+
+    <link
+        rel="stylesheet"
+        href="/static/style.css"
+    >
+</head>
+
+<body>
+
+    <div class="container">
+
+        <h1>PDF RAG</h1>
+        <p>Local Retrieval-Augmented Generation</p>
+
+        <hr>
+
+        <section>
+            <h2>Ingest PDF</h2>
+
+            <input
+                type="file"
+                id="pdfFile"
+                accept=".pdf,application/pdf"
+            >
+
+            <button id="ingestButton">
+                Ingest
+            </button>
+
+            <div id="ingestStatus">
+                No file selected.
+            </div>
+        </section>
+
+        <hr>
+
+        <section>
+            <h2>Ask a Question</h2>
+
+            <textarea
+                id="question"
+                rows="4"
+                placeholder="Ask something about your documents..."
+            ></textarea>
+
+            <br>
+
+            <button id="askButton">
+                Ask
+            </button>
+
+            <h2>Answer</h2>
+
+            <div id="answer">
+                No question asked yet.
+            </div>
+        </section>
+
+    </div>
+
+    <script src="/static/app.js"></script>
+
+</body>
+</html>

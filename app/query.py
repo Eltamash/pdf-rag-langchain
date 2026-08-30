@@ -194,20 +194,186 @@ def compare_similarity_and_reranking(question: str, file_name: str | None = None
     print(f"Similarity answer: {similarity_done-reranking_finished:.2f}s")
     print(f"Reranked answer: {finished-similarity_done:.2f}s")
 
-def ask(question: str, file_name: str | None = None) -> None:
-    search_filter = {"file_name": file_name} if file_name else None
-    raw_results = vector_store.similarity_search_with_score(question, k=RERANK_FETCH_K, filter=search_filter)
-    if not raw_results:
-        print("I don't know based on the provided documents.")
-        return
+def ask(question: str, file_name: str | None = None) -> dict:
+    total_started = perf_counter()
 
-    reranked = rerank_documents(question, raw_results, RERANK_TOP_K)
-    expanded_docs = expand_with_neighbors([item.document for item in reranked], NEIGHBOR_WINDOW)
-    print("\nAnswer:\n")
-    print(generate_answer(question, expanded_docs))
-    print("\nSources:\n")
-    for i, doc in enumerate(expanded_docs, start=1):
-        print(f"{i}. {get_file_name(doc)} - page {doc.metadata.get('page')} - chunk {doc.metadata.get('chunk_index')}")
+    search_filter = {
+        "file_name": file_name
+    } if file_name else None
+
+    # -------------------------------------------------
+    # 1. Vector retrieval
+    # -------------------------------------------------
+    retrieval_started = perf_counter()
+
+    raw_results = vector_store.similarity_search_with_score(
+        question,
+        k=RERANK_FETCH_K,
+        filter=search_filter,
+    )
+
+    retrieval_finished = perf_counter()
+
+    if not raw_results:
+        return {
+            "answer": "I don't know based on the provided documents.",
+            "sources": [],
+            "timing": {
+                "retrieval_seconds": round(
+                    retrieval_finished - retrieval_started,
+                    2,
+                ),
+                "total_seconds": round(
+                    retrieval_finished - total_started,
+                    2,
+                ),
+            },
+        }
+
+    # -------------------------------------------------
+    # 2. CrossEncoder reranking
+    # -------------------------------------------------
+    rerank_started = perf_counter()
+
+    reranked = rerank_documents(
+        question,
+        raw_results,
+        RERANK_TOP_K,
+    )
+
+    rerank_finished = perf_counter()
+
+    # -------------------------------------------------
+    # 3. Neighbor expansion
+    # -------------------------------------------------
+    neighbor_started = perf_counter()
+
+    expanded_docs = expand_with_neighbors(
+        [item.document for item in reranked],
+        NEIGHBOR_WINDOW,
+    )
+
+    neighbor_finished = perf_counter()
+
+    # -------------------------------------------------
+    # 4. Build context
+    # -------------------------------------------------
+    context = format_docs(expanded_docs)
+
+    context_characters = len(context)
+
+    # -------------------------------------------------
+    # 5. LLM generation
+    # -------------------------------------------------
+    llm_started = perf_counter()
+
+    answer = generate_answer(
+        question,
+        expanded_docs,
+    )
+
+    llm_finished = perf_counter()
+
+    # -------------------------------------------------
+    # 6. Sources
+    # -------------------------------------------------
+    sources = [
+        {
+            "file": get_file_name(doc),
+            "page": doc.metadata.get("page"),
+            "chunk": doc.metadata.get("chunk_index"),
+        }
+        for doc in expanded_docs
+    ]
+
+    total_finished = perf_counter()
+
+    timing = {
+        "retrieval_seconds": round(
+            retrieval_finished - retrieval_started,
+            2,
+        ),
+        "reranking_seconds": round(
+            rerank_finished - rerank_started,
+            2,
+        ),
+        "neighbor_expansion_seconds": round(
+            neighbor_finished - neighbor_started,
+            2,
+        ),
+        "llm_seconds": round(
+            llm_finished - llm_started,
+            2,
+        ),
+        "total_seconds": round(
+            total_finished - total_started,
+            2,
+        ),
+        "vector_candidates": len(raw_results),
+        "reranked_chunks": len(reranked),
+        "expanded_chunks": len(expanded_docs),
+        "context_characters": context_characters,
+    }
+
+    print("\n" + "=" * 80)
+    print("RAG REQUEST TIMING")
+    print("=" * 80)
+
+    print(
+        f"Vector retrieval:   "
+        f"{timing['retrieval_seconds']:.2f}s"
+    )
+
+    print(
+        f"Reranking:          "
+        f"{timing['reranking_seconds']:.2f}s"
+    )
+
+    print(
+        f"Neighbor expansion: "
+        f"{timing['neighbor_expansion_seconds']:.2f}s"
+    )
+
+    print(
+        f"LLM generation:     "
+        f"{timing['llm_seconds']:.2f}s"
+    )
+
+    print("-" * 80)
+
+    print(
+        f"Total request:      "
+        f"{timing['total_seconds']:.2f}s"
+    )
+
+    print(
+        f"Vector candidates:  "
+        f"{timing['vector_candidates']}"
+    )
+
+    print(
+        f"Reranked chunks:    "
+        f"{timing['reranked_chunks']}"
+    )
+
+    print(
+        f"Expanded chunks:    "
+        f"{timing['expanded_chunks']}"
+    )
+
+    print(
+        f"Context characters: "
+        f"{timing['context_characters']}"
+    )
+
+    print("=" * 80)
+
+    return {
+        "answer": answer,
+        "sources": sources,
+        "timing": timing,
+    }
+
 
 if __name__ == "__main__":
     question = input("Ask a question: ").strip()
