@@ -2,8 +2,10 @@ SELECT
     document,
     cmetadata
 FROM langchain_pg_embedding
-WHERE document ILIKE '%B2B%'
-   OR document ILIKE '%Merchandi%';
+WHERE document ILIKE '%POLYCOMP%'
+   OR document ILIKE '%IMAGERUNNER%';
+
+SELECT DISTINCT cmetadata FROM langchain_pg_embedding where cmetadata like '%Order%';
 
 SELECT
     document,

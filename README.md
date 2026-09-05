@@ -1,16 +1,20 @@
 # PDF RAG with LangChain, PostgreSQL, FastAPI and Local LLM
 
 ## Overview
+
 This project is a learning-oriented, enterprise-style Retrieval-Augmented Generation (RAG) application.
 
-It ingests PDF documents, generates embeddings locally using Hugging Face, stores vectors in PostgreSQL (pgvector) through LangChain, retrieves and reranks relevant chunks, expands neighboring chunks when needed for cross-page completeness, and answers questions using a local LLM served through an OpenAI-compatible endpoint.
+It ingests PDF documents, generates embeddings locally using Hugging Face, stores vectors in PostgreSQL (pgvector) through LangChain, retrieves and reranks relevant chunks, expands neighboring chunks for cross-page completeness, and answers questions using a local LLM served through an OpenAI-compatible endpoint.
 
-The project now supports both:
-- command-line usage for ingestion, querying, testing, and evaluation
-- a local web interface for PDF upload, ingestion, and question answering
+The project currently supports:
+
+- command-line ingestion, querying, testing, and evaluation
+- a local FastAPI web interface
+- browser-based PDF ingestion
+- browser-based RAG querying
 - JWT-based authentication using an HttpOnly cookie
-- role-based authorization (`admin`, `manager`, `user`)
-- admin user creation, listing, editing, role changes, and account enable/disable
+- role-based authorization
+- admin user management
 
 ## Architecture
 
@@ -18,40 +22,47 @@ The project now supports both:
 Browser / CLI
       │
       ▼
-FastAPI Web/API Layer
+FastAPI / Uvicorn
       │
-      ├──────────────► PDF Ingestion
-      │                 │
-      │                 ▼
-      │            PyPDFLoader
-      │                 │
-      │                 ▼
-      │      RecursiveCharacterTextSplitter
-      │                 │
-      │                 ▼
-      │      HuggingFace Embeddings (BGE)
-      │                 │
-      │                 ▼
-      │        PostgreSQL + pgvector
+      ├── Authentication / Authorization
+      │      └── PostgreSQL app_user
       │
-      ▼
-Vector Similarity Retrieval
+      ├── Query
+      │      └── RAG Service
       │
-      ▼
-CrossEncoder Reranking
-      │
-      ▼
-Neighbor Chunk Expansion
-      │
-      ▼
-Prompt Construction
-      │
-      ▼
-Local LLM Server
-(OpenAI-compatible, currently llama-server)
-      │
-      ▼
-Answer + Sources
+      └── Ingestion
+             └── Ingest Service
+                    │
+                    ▼
+               PyPDFLoader
+                    │
+                    ▼
+       RecursiveCharacterTextSplitter
+                    │
+                    ▼
+          HuggingFace Embeddings (BGE)
+                    │
+                    ▼
+          PostgreSQL + pgvector
+                    │
+                    ▼
+       Vector Similarity Retrieval
+                    │
+                    ▼
+        CrossEncoder Reranking
+                    │
+                    ▼
+       Neighbor Chunk Expansion
+                    │
+                    ▼
+          Prompt Construction
+                    │
+                    ▼
+              llama-server
+            Qwen3.5 9B LLM
+                    │
+                    ▼
+            Answer + Sources
 ```
 
 ## Current Project Structure
@@ -67,31 +78,115 @@ pdf-rag-langchain/
 │   ├── query.py
 │   ├── reranker.py
 │   ├── evaluate.py
+│   │
+│   ├── api/
+│   │   ├── __init__.py
+│   │   ├── auth.py
+│   │   ├── query.py
+│   │   ├── ingest.py
+│   │   └── users.py
+│   │
+│   ├── web/
+│   │   ├── __init__.py
+│   │   ├── templates.py
+│   │   ├── auth_pages.py
+│   │   ├── query_pages.py
+│   │   ├── ingest_pages.py
+│   │   └── admin_pages.py
+│   │
 │   ├── auth/
 │   │   ├── password.py
 │   │   ├── jwt.py
 │   │   ├── dependencies.py
 │   │   └── permissions.py
+│   │
 │   ├── services/
 │   │   ├── ingest_service.py
 │   │   ├── rag_service.py
 │   │   └── user_service.py
+│   │
 │   ├── templates/
 │   │   ├── login.html
 │   │   ├── index.html
 │   │   ├── ingest.html
 │   │   ├── admin.html
 │   │   └── user_edit.html
+│   │
 │   └── static/
 │       ├── app.js
 │       ├── ingest.js
 │       └── style.css
+│
 ├── docs/
 ├── .env
 ├── schema.sql
 ├── README.md
 └── spec.md
 ```
+
+## Routing Architecture
+
+The FastAPI application has been refactored into a larger-app layout.
+
+`main.py` is now primarily responsible for:
+
+```text
+create FastAPI application
+→ mount static files
+→ include API routers
+→ include HTML page routers
+→ expose health endpoint
+```
+
+API and HTML routes are separated by responsibility.
+
+```text
+app/api/
+→ action/API endpoints
+→ JSON/form processing
+→ login/logout
+→ query
+→ ingestion
+→ user management
+
+app/web/
+→ browser-facing page routes
+→ Jinja templates
+→ redirects/navigation
+```
+
+Current route ownership:
+
+```text
+api/auth.py
+→ POST /api/auth/login
+→ POST /api/auth/logout
+
+api/query.py
+→ POST /api/query
+
+api/ingest.py
+→ POST /api/ingest
+
+api/users.py
+→ POST /api/users
+→ POST /api/users/{user_id}
+
+web/auth_pages.py
+→ GET /login
+
+web/query_pages.py
+→ GET /query
+
+web/ingest_pages.py
+→ GET /ingest
+
+web/admin_pages.py
+→ GET /admin
+→ GET /admin/users/{user_id}
+```
+
+The routing refactor intentionally changed application structure without changing working RAG, authentication, ingestion, or user-management behavior.
 
 ## Technology Stack
 
@@ -107,9 +202,8 @@ pdf-rag-langchain/
 - PostgreSQL + pgvector
 - SQLAlchemy
 - Psycopg3
-- Local OpenAI-compatible LLM endpoint
 - Qwen3.5 9B quantized model
-- llama-server for current local inference
+- llama-server
 - LM Studio was also tested during development
 
 ## Current RAG Pipeline
@@ -149,51 +243,9 @@ RERANK_TOP_K=5
 NEIGHBOR_WINDOW=1
 ```
 
-These values were selected through repeated retrieval and completeness testing rather than using fixed generic defaults.
-
-## Completed Features
-
-- Project structure and environment configuration
-- PostgreSQL connectivity
-- pgvector vector storage
-- Local Hugging Face embeddings
-- PDF ingestion
-- SHA-256 duplicate detection
-- Duplicate ingestion prevention
-- Configurable chunking
-- Global `chunk_index` metadata across each PDF
-- Semantic vector retrieval
-- Distance-based thresholding
-- Metadata filtering by file name
-- Similarity versus MMR comparison
-- CrossEncoder reranking
-- Neighboring-chunk expansion
-- Cross-page answer completeness handling
-- Local LLM question answering
-- Source references including file, page, and chunk
-- Retrieval evaluation suite
-- Answer-bearing keyword checks
-- Correct-refusal testing
-- Completeness regression testing
-- Local FastAPI web interface
-- PDF upload and ingestion through the browser
-- Browser-based RAG question answering
-- Query performance timing and diagnostics
-- JWT authentication and logout
-- HttpOnly JWT cookie handling
-- Protected application routes
-- Role-based authorization
-- `user`, `manager`, and `admin` roles
-- Separate Query and Ingest pages
-- Admin user-management page
-- User create/list/edit functionality
-- User enable/disable functionality
-- Admin self-disable safeguard
-- Admin self-demotion safeguard
-
 ## Authentication and Role-Based Authorization
 
-The web application now includes JWT-based authentication.
+The web application uses JWT-based authentication.
 
 ```text
 Username + Password
@@ -208,12 +260,12 @@ Create signed JWT
         ↓
 Store JWT in HttpOnly cookie
         ↓
-Access protected routes
+Protected application routes
 ```
 
-Protected requests validate the JWT and then load the current user from PostgreSQL. This keeps the database authoritative for account status; a disabled user is rejected even if an older JWT still exists.
+Protected requests validate the JWT and then load the current user from PostgreSQL. PostgreSQL therefore remains authoritative for account status.
 
-Logout removes the JWT cookie and redirects the user back to the login page.
+Logout removes the JWT cookie and returns the user to the login page.
 
 ### Roles and Permissions
 
@@ -227,7 +279,7 @@ Reusable authorization dependencies:
 
 ```text
 get_current_user()
-→ any authenticated active user
+→ authenticated active users
 
 require_ingestion_access()
 → admin or manager
@@ -236,18 +288,18 @@ require_admin()
 → admin only
 ```
 
-Frontend visibility is treated as convenience only; backend authorization remains the actual security boundary.
+Backend authorization remains the security boundary even when the frontend hides controls that a role is not allowed to use.
 
-### User Administration
+## User Administration
 
 The `/admin` page provides:
 
-- Create user
-- Grid of existing users
-- Clickable `user_id` to open a user
-- Modify username
-- Modify role
-- Enable/disable an account
+- create user
+- list existing users in a grid
+- clickable `user_id`
+- edit username
+- modify role
+- enable/disable account
 
 Current user table:
 
@@ -262,7 +314,7 @@ is_active
 created_at
 ```
 
-Supported roles are:
+Supported roles:
 
 ```text
 admin
@@ -270,7 +322,64 @@ manager
 user
 ```
 
-Passwords are stored only as hashes. The admin update endpoint also prevents the currently logged-in administrator from disabling their own account or demoting their own role.
+Passwords are stored only as hashes.
+
+The update endpoint also prevents the currently logged-in administrator from:
+
+- disabling their own account
+- changing their own role away from `admin`
+
+## Completed Features
+
+### Core RAG
+- PostgreSQL + pgvector
+- local Hugging Face embeddings
+- PDF ingestion
+- SHA-256 duplicate detection
+- duplicate ingestion prevention
+- configurable chunking
+- global `chunk_index`
+- semantic vector retrieval
+- distance thresholding
+- metadata filtering
+- Similarity vs MMR comparison
+- CrossEncoder reranking
+- neighbor expansion
+- cross-page completeness handling
+- local LLM answering
+- source references
+- evaluation suite
+- answer-bearing checks
+- refusal testing
+- completeness regression testing
+- performance timing
+
+### Web Application
+- FastAPI web UI
+- login/logout
+- query page
+- ingestion page
+- admin page
+- user edit page
+- protected routes
+- browser-based PDF upload
+- browser-based querying
+- source display
+- separate `api/` and `web/` routing layers
+- thin `main.py` application assembly
+
+### Security and Roles
+- password hashing
+- JWT creation and validation
+- HttpOnly JWT cookie
+- active-user validation against PostgreSQL
+- `user`, `manager`, and `admin` roles
+- ingestion restricted to manager/admin
+- user administration restricted to admin
+- create/list/edit users
+- enable/disable users
+- self-disable safeguard
+- self-demotion safeguard
 
 ## Duplicate Prevention
 
@@ -289,15 +398,11 @@ Already exists? → Skip
 New document?   → Ingest
 ```
 
-The current duplicate policy is content-based. If the same file is uploaded again, vector ingestion is skipped.
-
 ## Chunking and Cross-Page Context
 
-`PyPDFLoader` loads PDF pages as separate LangChain documents. Because the text splitter operates on those page documents, fixed-size chunks do not naturally cross physical page boundaries.
+`PyPDFLoader` loads PDF pages as separate LangChain documents, so fixed-size chunks do not naturally cross physical page boundaries.
 
-This caused a real completeness issue during testing: a section heading appeared at the end of one page while the remainder of the list continued on the next page.
-
-To preserve the existing chunking strategy while solving this problem, every chunk receives a global `chunk_index` across the entire PDF.
+A real completeness test showed a section heading on one page and the remainder of the list on the next page. Every chunk therefore receives a global `chunk_index`.
 
 After reranking, neighboring chunks are retrieved using:
 
@@ -307,30 +412,29 @@ N
 N+1
 ```
 
-This allows a strongly relevant chunk to bring in its immediate continuation, even when the continuation is on the next physical PDF page.
+This allows a relevant chunk to bring in its immediate continuation even across a physical page break.
 
 ## Evaluation
 
 `app/evaluate.py` provides a repeatable retrieval regression suite.
 
-The evaluation currently measures:
+It measures:
+
 - expected file at Rank 1
 - expected file in Top-K
-- threshold pass/fail
+- threshold behavior
 - reranked file presence
 - answer-bearing context
-- completeness using expected keywords
-- correct refusals for unrelated questions
+- completeness
+- correct refusals
 - missing expected evidence
-- baseline retrieval versus reranked + neighboring context
+- baseline versus reranked + neighbor-expanded retrieval
 
-A particularly important regression test asks:
+Important regression case:
 
 ```text
 What are all the Sales Order types?
 ```
-
-The baseline similarity pipeline retrieved relevant but incomplete chunks.
 
 Result:
 
@@ -339,55 +443,9 @@ Baseline answer evidence:       FAIL
 Reranked + neighbor evidence:   PASS
 ```
 
-This confirmed that neighbor expansion solved a real cross-page completeness failure rather than merely changing the final LLM wording.
+## Application Routes
 
-## Local Web Application
-
-The command-line application has been extended with a role-aware local browser interface.
-
-### Query
-
-```text
-/query
-  ↓
-Authenticated admin / manager / user
-  ↓
-POST /api/query
-  ↓
-RAG pipeline
-  ↓
-Answer + Sources
-```
-
-### Ingestion
-
-```text
-/ingest
-  ↓
-Admin or Manager only
-  ↓
-POST /api/ingest
-  ↓
-PDF ingestion
-  ↓
-PostgreSQL + pgvector
-```
-
-### Administration
-
-```text
-/admin
-  ↓
-Admin only
-  ↓
-Create User
-List Users
-Edit User
-Change Role
-Enable / Disable Account
-```
-
-Current page routes:
+Page routes:
 
 ```text
 /login
@@ -397,7 +455,7 @@ Current page routes:
 /admin/users/{user_id}
 ```
 
-Current API routes include:
+API routes:
 
 ```text
 POST /api/auth/login
@@ -409,33 +467,29 @@ POST /api/users/{user_id}
 GET  /health
 ```
 
-FastAPI is served locally with Uvicorn.
+FastAPI-generated API documentation is available at:
+
+```text
+/docs
+```
 
 ## CLI Workflow
 
 ### Ingest PDFs
 
-Place PDFs into `docs/` and run:
-
 ```bash
 python3 -m app.ingest
 ```
 
-The CLI ingestion path is still supported.
-
 ### Query
-
-Run:
 
 ```bash
 python3 -m app.query
 ```
 
-The command-line query path remains useful for retrieval debugging, model testing, and comparison with web performance.
-
 ## Web Workflow
 
-Start the local FastAPI application:
+Start the application:
 
 ```bash
 python -m uvicorn app.main:app --reload
@@ -447,21 +501,9 @@ Then open:
 http://127.0.0.1:8000/login
 ```
 
-Useful endpoints:
-
-```text
-/             Local PDF RAG web interface
-/api/query    RAG question endpoint
-/api/ingest   PDF upload and ingestion endpoint
-/health       Health check
-/docs         FastAPI-generated API documentation
-```
-
 ## Performance Findings
 
-Performance timing is now captured inside the production-style `ask()` path.
-
-A representative web request produced:
+With reasoning enabled, an earlier representative request showed:
 
 ```text
 Vector retrieval:    0.11s
@@ -469,155 +511,118 @@ Reranking:           4.67s
 Neighbor expansion:  0.03s
 LLM generation:     60.68s
 Total request:      65.49s
-
-Vector candidates:   8
-Reranked chunks:     5
-Expanded chunks:    10
-Context characters: 7097
 ```
 
-This showed that retrieval, reranking, PostgreSQL, FastAPI, and neighbor expansion are not the primary bottlenecks.
-
-The local LLM generation dominates response latency.
-
-## llama-server Performance
-
-The same Qwen3.5 9B model was tested with `llama-server`.
-
-Representative llama-server timing:
+llama-server reported approximately:
 
 ```text
 Prompt tokens:       4016
 Prompt processing:   ~3.34s
 Prompt speed:         ~1203 tokens/sec
-
 Generated tokens:    1438
 Generation time:     ~60.24s
 Generation speed:    ~23.85 tokens/sec
-
-Total LLM time:      ~63.58s
 ```
 
-This closely matched the timing recorded in the FastAPI application.
-
-The current conclusion is:
-
-```text
-RAG retrieval pipeline → fast enough
-Prompt processing      → fast
-Token generation       → dominant latency
-```
-
-The next performance focus should therefore be generation behavior and output/reasoning token count rather than aggressively reducing retrieval quality.
+The bottleneck was local model generation rather than retrieval, FastAPI, pgvector, or prompt ingestion.
 
 ## Current Low-Latency Inference Baseline
 
-After disabling Qwen's Thinking/Reasoning mode and using temperature `0.6`, response latency improved dramatically while tested answers remained correct.
-
-Observed end-to-end web response times:
+Current Qwen settings:
 
 ```text
-Unrelated / negative question: ~4 seconds
+Reasoning / Thinking: OFF
+Temperature:          0.6
+```
+
+Observed end-to-end response times:
+
+```text
+Negative / unrelated question: ~4 seconds
 Education question:            ~7 seconds
 Sales Type completeness query: ~9 seconds
 ```
 
-Current preferred local inference configuration:
+Current preferred local inference stack:
 
 ```text
 Qwen3.5 9B
++
 llama-server
-Reasoning / Thinking: OFF
-Temperature: 0.6
++
+Reasoning OFF
++
+Temperature 0.6
 ```
 
-The earlier ~60-second generation measurement remains useful because it demonstrated that the main bottleneck was reasoning/output token generation rather than retrieval, FastAPI, pgvector, or prompt processing.
+## Routing Refactor Checkpoint
 
-## LM Studio vs llama-server
+The larger-application FastAPI structure has been regression-tested after refactoring.
 
-Both LM Studio and llama-server were tested as OpenAI-compatible local inference providers.
-
-During recent tests, llama-server delivered substantially better and more predictable performance with the same Qwen3.5 9B model.
-
-Observed rough behavior:
+Verified:
 
 ```text
-LM Studio web query      → could take several minutes
-llama-server CLI query   → under ~3 minutes in earlier tests
-llama-server web query   → stabilized around ~55–70 seconds
+Authentication / Login     PASS
+Query page + RAG API       PASS
+Ingestion page + API       PASS
+Admin page                 PASS
+User creation              PASS
+User edit / role change    PASS
+Logout                     PASS
 ```
 
-Current preference for this PoC is therefore `llama-server`.
+The current separation is:
+
+```text
+web/
+→ HTML/Jinja presentation
+
+api/
+→ HTTP actions / API endpoints
+
+services/
+→ application/business logic
+
+auth/
+→ authentication + authorization
+
+core RAG modules
+→ ingestion, retrieval, reranking, evaluation
+```
+
+If the frontend later moves to React, the `api/`, `services/`, `auth/`, and RAG layers can remain largely intact while the current Jinja-oriented `web/` layer can be reduced or replaced.
 
 ## Important Design Principles Learned
 
-This project intentionally avoids treating RAG as only:
-
-```text
-PDF → embedding → vector search → LLM
-```
-
-Testing demonstrated several production-relevant lessons:
-
 - nearest vector does not always contain the answer
 - semantic relevance is different from answer-bearing relevance
-- a low distance score is not a confidence percentage
-- hard thresholds create false positives and false negatives
+- vector distance is not a confidence percentage
+- thresholds create both false positives and false negatives
 - chunk size must be evaluated empirically
-- page boundaries can destroy logical section continuity
-- reranking improves candidate ordering but cannot recover missing candidates by itself
-- neighboring chunks can restore continuation context
-- completeness must be explicitly tested
-- final answer quality should not be judged only from retrieval rank
-- local LLM inference can dominate total application latency
-- reasoning mode can add substantial latency to grounded RAG without necessarily improving the answer
+- page boundaries can break logical continuity
+- reranking improves ordering but cannot recover missing candidates by itself
+- neighbor expansion can restore continuation context
+- completeness must be tested explicitly
+- local LLM reasoning can dominate latency
+- grounded RAG may not benefit from expensive reasoning mode
 - backend authorization must be enforced independently of frontend visibility
-- JWT identifies the session, while PostgreSQL remains authoritative for current user status
-
-## Learning Objectives
-
-This project emphasizes understanding the internal stages of RAG rather than relying entirely on high-level abstractions.
-
-Areas covered so far include:
-- document loading
-- PDF page behavior
-- chunking
-- embeddings
-- vector databases
-- semantic distance
-- retrieval
-- metadata filtering
-- retrieval thresholds
-- MMR
-- reranking
-- cross-page context
-- neighboring chunks
-- prompt construction
-- local LLM inference
-- evaluation
-- regression testing
-- FastAPI web integration
-- performance analysis
-- password hashing
-- JWT authentication
-- HttpOnly cookie handling
-- role-based authorization
-- admin user-management flows
+- PostgreSQL remains authoritative for active user/account state
+- API routers should stay thin and delegate application logic to services
+- browser page routing and API routing should remain separated
+- the routing separation makes a future React frontend easier to introduce
 
 ## Next Milestones
 
-Likely next areas of work:
-
 - polish web UX and error handling
-- replace raw JSON error pages with user-friendly feedback
-- show success messages after admin operations
-- improve navigation and status presentation
-- potentially migrate the frontend from Jinja/vanilla JavaScript to React while keeping FastAPI as the backend API
-- document listing and selection
-- improve ingestion lifecycle and document management
-- stronger refusal logic
-- hybrid retrieval for exact codes and identifiers
-- richer metadata
+- replace raw JSON error pages with friendly messages
+- add clear success messages after admin operations
+- improve navigation and role/status presentation
+- potentially migrate the frontend to React while retaining FastAPI as the backend API
+- improve document listing and selection
+- improve ingestion lifecycle/document management
+- strengthen refusal logic
+- introduce hybrid retrieval for exact codes and identifiers
+- enrich metadata
 - continue retrieval regression testing as the corpus grows
 - revisit OCR/document reconstruction later as an optional ingestion experiment
 
