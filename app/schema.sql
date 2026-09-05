@@ -58,3 +58,16 @@ ON document_chunks(document_id);
 
 CREATE INDEX IF NOT EXISTS idx_chunks_page_number
 ON document_chunks(page_number);
+
+
+CREATE TABLE IF NOT EXISTS app_user (
+    user_id BIGSERIAL PRIMARY KEY,
+    username VARCHAR(100) NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    role VARCHAR(20) NOT NULL DEFAULT 'user',
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT chk_app_user_role
+        CHECK (role IN ('admin', 'user'))
+);

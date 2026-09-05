@@ -51,3 +51,92 @@ button:disabled {
 #answer {
     min-height: 80px;
 }
+
+.login-container {
+    max-width: 420px;
+}
+
+.login-container form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.login-container label {
+    font-weight: bold;
+}
+
+.login-container input {
+    padding: 10px;
+    font-size: 16px;
+    box-sizing: border-box;
+}
+
+#loginStatus {
+    margin-top: 15px;
+}
+
+.top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 20px;
+}
+
+.user-info {
+    font-size: 14px;
+    margin-top: 10px;
+}
+
+.navigation {
+    display: flex;
+    gap: 15px;
+    margin: 15px 0;
+}
+
+.navigation a {
+    text-decoration: none;
+    font-weight: bold;
+}
+
+#ingestStatus {
+    margin-top: 15px;
+    padding: 15px;
+    background: #f1f1f1;
+    min-height: 40px;
+    white-space: pre-wrap;
+}
+
+.admin-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 450px;
+}
+
+.admin-form input,
+.admin-form select {
+    padding: 10px;
+    font-size: 15px;
+}
+
+.user-grid {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+.user-grid th,
+.user-grid td {
+    border-bottom: 1px solid #ddd;
+    padding: 10px;
+    text-align: left;
+}
+
+.user-grid th {
+    background: #f1f1f1;
+}
+
+.user-grid tbody tr:hover {
+    background: #f7f7f7;
+}

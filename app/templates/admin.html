@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>PDF RAG - Admin</title>
+
+    <link
+        rel="stylesheet"
+        href="/static/style.css"
+    >
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="top-bar">
+
+        <div>
+            <h1>PDF RAG</h1>
+            <p>Administration</p>
+        </div>
+
+        <div class="user-info">
+            Logged in as:
+            <strong>{{ current_user.username }}</strong>
+
+            |
+            Role:
+            <strong>{{ current_user.role }}</strong>
+        </div>
+
+    </div>
+
+    <hr>
+
+    <nav class="navigation">
+
+        <a href="/query">
+            Query
+        </a>
+
+        <a href="/ingest">
+            Ingest
+        </a>
+
+        <a href="/admin">
+            Admin
+        </a>
+
+    </nav>
+
+    <hr>
+
+    <section>
+
+        <h2>Create User</h2>
+
+        <form
+            action="/api/users"
+            method="post"
+            class="admin-form"
+        >
+
+            <label for="username">
+                Username
+            </label>
+
+            <input
+                type="text"
+                id="username"
+                name="username"
+                required
+            >
+
+            <label for="password">
+                Password
+            </label>
+
+            <input
+                type="password"
+                id="password"
+                name="password"
+                required
+            >
+
+            <label for="role">
+                Role
+            </label>
+
+            <select
+                id="role"
+                name="role"
+                required
+            >
+                <option value="user">
+                    User
+                </option>
+
+                <option value="manager">
+                    Manager
+                </option>
+
+                <option value="admin">
+                    Admin
+                </option>
+            </select>
+
+            <button type="submit">
+                Create User
+            </button>
+
+        </form>
+
+    </section>
+
+    <hr>
+
+    <section>
+
+        <h2>Existing Users</h2>
+
+        <table class="user-grid">
+
+            <thead>
+
+                <tr>
+                    <th>User ID</th>
+                    <th>Username</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                </tr>
+
+            </thead>
+
+            <tbody>
+
+                {% for user in users %}
+
+                <tr>
+
+                    <td>
+                        <a href="/admin/users/{{ user.user_id }}">
+                            {{ user.user_id }}
+                        </a>
+                    </td>
+
+                    <td>
+                        {{ user.username }}
+                    </td>
+
+                    <td>
+                        {{ user.role }}
+                    </td>
+
+                    <td>
+                        {% if user.is_active %}
+                            Active
+                        {% else %}
+                            Disabled
+                        {% endif %}
+                    </td>
+
+                    <td>
+                        {{ user.created_at }}
+                    </td>
+
+                </tr>
+
+                {% endfor %}
+
+            </tbody>
+
+        </table>
+
+    </section>
+
+    <hr>
+
+    <form
+        action="/api/auth/logout"
+        method="post"
+    >
+        <button type="submit">
+            Logout
+        </button>
+    </form>
+
+</div>
+
+</body>
+
+</html>

@@ -8,6 +8,9 @@ It ingests PDF documents, generates embeddings locally using Hugging Face, store
 The project now supports both:
 - command-line usage for ingestion, querying, testing, and evaluation
 - a local web interface for PDF upload, ingestion, and question answering
+- JWT-based authentication using an HttpOnly cookie
+- role-based authorization (`admin`, `manager`, `user`)
+- admin user creation, listing, editing, role changes, and account enable/disable
 
 ## Architecture
 
@@ -64,18 +67,30 @@ pdf-rag-langchain/
 │   ├── query.py
 │   ├── reranker.py
 │   ├── evaluate.py
+│   ├── auth/
+│   │   ├── password.py
+│   │   ├── jwt.py
+│   │   ├── dependencies.py
+│   │   └── permissions.py
 │   ├── services/
 │   │   ├── ingest_service.py
-│   │   └── rag_service.py
+│   │   ├── rag_service.py
+│   │   └── user_service.py
 │   ├── templates/
-│   │   └── index.html
+│   │   ├── login.html
+│   │   ├── index.html
+│   │   ├── ingest.html
+│   │   ├── admin.html
+│   │   └── user_edit.html
 │   └── static/
 │       ├── app.js
+│       ├── ingest.js
 │       └── style.css
 ├── docs/
 ├── .env
 ├── schema.sql
-└── README.md
+├── README.md
+└── spec.md
 ```
 
 ## Technology Stack
@@ -84,6 +99,8 @@ pdf-rag-langchain/
 - LangChain
 - FastAPI
 - Uvicorn
+- PyJWT
+- pwdlib / Argon2 password hashing
 - langchain-postgres
 - Hugging Face embeddings: `BAAI/bge-base-en-v1.5`
 - CrossEncoder reranker: `cross-encoder/ms-marco-MiniLM-L6-v2`
@@ -162,6 +179,98 @@ These values were selected through repeated retrieval and completeness testing r
 - PDF upload and ingestion through the browser
 - Browser-based RAG question answering
 - Query performance timing and diagnostics
+- JWT authentication and logout
+- HttpOnly JWT cookie handling
+- Protected application routes
+- Role-based authorization
+- `user`, `manager`, and `admin` roles
+- Separate Query and Ingest pages
+- Admin user-management page
+- User create/list/edit functionality
+- User enable/disable functionality
+- Admin self-disable safeguard
+- Admin self-demotion safeguard
+
+## Authentication and Role-Based Authorization
+
+The web application now includes JWT-based authentication.
+
+```text
+Username + Password
+        ↓
+POST /api/auth/login
+        ↓
+Verify user in PostgreSQL
+        ↓
+Verify password hash
+        ↓
+Create signed JWT
+        ↓
+Store JWT in HttpOnly cookie
+        ↓
+Access protected routes
+```
+
+Protected requests validate the JWT and then load the current user from PostgreSQL. This keeps the database authoritative for account status; a disabled user is rejected even if an older JWT still exists.
+
+Logout removes the JWT cookie and redirects the user back to the login page.
+
+### Roles and Permissions
+
+| Capability | admin | manager | user |
+|---|---:|---:|---:|
+| Query documents | Yes | Yes | Yes |
+| Ingest PDFs | Yes | Yes | No |
+| Create/manage users | Yes | No | No |
+
+Reusable authorization dependencies:
+
+```text
+get_current_user()
+→ any authenticated active user
+
+require_ingestion_access()
+→ admin or manager
+
+require_admin()
+→ admin only
+```
+
+Frontend visibility is treated as convenience only; backend authorization remains the actual security boundary.
+
+### User Administration
+
+The `/admin` page provides:
+
+- Create user
+- Grid of existing users
+- Clickable `user_id` to open a user
+- Modify username
+- Modify role
+- Enable/disable an account
+
+Current user table:
+
+```text
+app_user
+---------
+user_id
+username
+password_hash
+role
+is_active
+created_at
+```
+
+Supported roles are:
+
+```text
+admin
+manager
+user
+```
+
+Passwords are stored only as hashes. The admin update endpoint also prevents the currently logged-in administrator from disabling their own account or demoting their own role.
 
 ## Duplicate Prevention
 
@@ -234,47 +343,71 @@ This confirmed that neighbor expansion solved a real cross-page completeness fai
 
 ## Local Web Application
 
-The command-line application has been extended with a local browser-based interface.
+The command-line application has been extended with a role-aware local browser interface.
 
-Current flow:
+### Query
 
 ```text
-Browser
-  ├─ Upload PDF
-  │    ↓
-  │  POST /api/ingest
-  │    ↓
-  │  FastAPI
-  │    ↓
-  │  ingest_service.py
-  │    ↓
-  │  ingest_pdf()
-  │    ↓
-  │  PostgreSQL + pgvector
-  │
-  └─ Ask Question
-       ↓
-     POST /api/query
-       ↓
-     FastAPI
-       ↓
-     rag_service.py
-       ↓
-     RAG query pipeline
-       ↓
-     Local LLM
-       ↓
-     Answer + Sources
+/query
+  ↓
+Authenticated admin / manager / user
+  ↓
+POST /api/query
+  ↓
+RAG pipeline
+  ↓
+Answer + Sources
 ```
 
-The local web interface currently provides:
-- PDF file selection
-- PDF ingestion
-- duplicate detection feedback
-- question input
-- answer display
-- source file/page/chunk display
-- disabled Ask button while a request is running
+### Ingestion
+
+```text
+/ingest
+  ↓
+Admin or Manager only
+  ↓
+POST /api/ingest
+  ↓
+PDF ingestion
+  ↓
+PostgreSQL + pgvector
+```
+
+### Administration
+
+```text
+/admin
+  ↓
+Admin only
+  ↓
+Create User
+List Users
+Edit User
+Change Role
+Enable / Disable Account
+```
+
+Current page routes:
+
+```text
+/login
+/query
+/ingest
+/admin
+/admin/users/{user_id}
+```
+
+Current API routes include:
+
+```text
+POST /api/auth/login
+POST /api/auth/logout
+POST /api/query
+POST /api/ingest
+POST /api/users
+POST /api/users/{user_id}
+GET  /health
+```
 
 FastAPI is served locally with Uvicorn.
 
@@ -311,7 +444,7 @@ python -m uvicorn app.main:app --reload
 Then open:
 
 ```text
-http://127.0.0.1:8000
+http://127.0.0.1:8000/login
 ```
 
 Useful endpoints:
@@ -377,6 +510,29 @@ Token generation       → dominant latency
 
 The next performance focus should therefore be generation behavior and output/reasoning token count rather than aggressively reducing retrieval quality.
 
+## Current Low-Latency Inference Baseline
+
+After disabling Qwen's Thinking/Reasoning mode and using temperature `0.6`, response latency improved dramatically while tested answers remained correct.
+
+Observed end-to-end web response times:
+
+```text
+Unrelated / negative question: ~4 seconds
+Education question:            ~7 seconds
+Sales Type completeness query: ~9 seconds
+```
+
+Current preferred local inference configuration:
+
+```text
+Qwen3.5 9B
+llama-server
+Reasoning / Thinking: OFF
+Temperature: 0.6
+```
+
+The earlier ~60-second generation measurement remains useful because it demonstrated that the main bottleneck was reasoning/output token generation rather than retrieval, FastAPI, pgvector, or prompt processing.
+
 ## LM Studio vs llama-server
 
 Both LM Studio and llama-server were tested as OpenAI-compatible local inference providers.
@@ -414,6 +570,9 @@ Testing demonstrated several production-relevant lessons:
 - completeness must be explicitly tested
 - final answer quality should not be judged only from retrieval rank
 - local LLM inference can dominate total application latency
+- reasoning mode can add substantial latency to grounded RAG without necessarily improving the answer
+- backend authorization must be enforced independently of frontend visibility
+- JWT identifies the session, while PostgreSQL remains authoritative for current user status
 
 ## Learning Objectives
 
@@ -439,19 +598,28 @@ Areas covered so far include:
 - regression testing
 - FastAPI web integration
 - performance analysis
+- password hashing
+- JWT authentication
+- HttpOnly cookie handling
+- role-based authorization
+- admin user-management flows
 
 ## Next Milestones
 
 Likely next areas of work:
-- reduce local LLM generation latency
-- measure prompt and completion token usage in application diagnostics
-- reduce unnecessary reasoning/output tokens
-- continue retrieval regression testing as the corpus grows
-- document listing and selection in the web UI
-- improve ingestion status and document lifecycle handling
+
+- polish web UX and error handling
+- replace raw JSON error pages with user-friendly feedback
+- show success messages after admin operations
+- improve navigation and status presentation
+- potentially migrate the frontend from Jinja/vanilla JavaScript to React while keeping FastAPI as the backend API
+- document listing and selection
+- improve ingestion lifecycle and document management
 - stronger refusal logic
 - hybrid retrieval for exact codes and identifiers
 - richer metadata
-- eventual authentication and deployment hardening if the PoC moves beyond local use
+- continue retrieval regression testing as the corpus grows
+- revisit OCR/document reconstruction later as an optional ingestion experiment
 
-LangGraph, agents, distributed infrastructure, and other higher-complexity components are intentionally postponed until the core RAG system is reliable and measurable.
+LangGraph, agents, distributed infrastructure, and other higher-complexity components remain intentionally postponed until the core RAG system is reliable and measurable.
+

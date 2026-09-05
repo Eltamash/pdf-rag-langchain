@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Edit User</title>
+
+    <link
+        rel="stylesheet"
+        href="/static/style.css"
+    >
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>Edit User</h1>
+
+    <p>
+        User ID:
+        <strong>{{ user.user_id }}</strong>
+    </p>
+
+    <form
+        action="/api/users/{{ user.user_id }}"
+        method="post"
+        class="admin-form"
+    >
+
+        <label for="username">
+            Username
+        </label>
+
+        <input
+            type="text"
+            id="username"
+            name="username"
+            value="{{ user.username }}"
+            required
+        >
+
+        <label for="role">
+            Role
+        </label>
+
+        <select
+            id="role"
+            name="role"
+            required
+        >
+
+            <option
+                value="user"
+                {% if user.role == "user" %}selected{% endif %}
+            >
+                User
+            </option>
+
+            <option
+                value="manager"
+                {% if user.role == "manager" %}selected{% endif %}
+            >
+                Manager
+            </option>
+
+            <option
+                value="admin"
+                {% if user.role == "admin" %}selected{% endif %}
+            >
+                Admin
+            </option>
+
+        </select>
+
+        <label>
+            <input
+                type="checkbox"
+                name="is_active"
+                {% if user.is_active %}checked{% endif %}
+            >
+
+            Active
+        </label>
+
+        <button type="submit">
+            Save Changes
+        </button>
+
+    </form>
+
+    <p>
+        <a href="/admin">
+            Back to Admin
+        </a>
+    </p>
+
+</div>
+
+</body>
+
+</html>

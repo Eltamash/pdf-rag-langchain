@@ -26,8 +26,11 @@ llm = ChatOpenAI(
     model=CHAT_MODEL,
     api_key=OPENAI_API_KEY,
     base_url=OPENAI_BASE_URL,
-    temperature=0,
-    max_tokens=MAX_COMPLETION_TOKENS   
+    temperature=0.6,
+    max_tokens=MAX_COMPLETION_TOKENS,
+    extra_body={
+        "chat_template_kwargs": {"enable_thinking": False}
+    }  
 )
 prompt = ChatPromptTemplate.from_messages([
     ("system", """

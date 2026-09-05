@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>PDF RAG - Login</title>
+
+    <link
+        rel="stylesheet"
+        href="/static/style.css"
+    >
+</head>
+
+<body>
+    <div class="container login-container">
+        <h1>PDF RAG</h1>
+        <p>
+            Sign in to continue
+        </p>
+        <form
+            id="loginForm"
+            action="/api/auth/login"
+            method="post"
+        >
+            <label for="username">
+                Username
+            </label>
+            <input
+                type="text"
+                id="username"
+                name="username"
+                required
+                autocomplete="username"
+            >
+            <label for="password">
+                Password
+            </label>
+            <input
+                type="password"
+                id="password"
+                name="password"
+                required
+                autocomplete="current-password"
+            >
+            <button type="submit">
+                Login
+            </button>
+        </form>
+        <div id="loginStatus"></div>
+    </div>
+</body>
+</html>

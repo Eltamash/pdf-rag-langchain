@@ -1,13 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1.0"
     >
-    <title>PDF RAG - Query</title>
+    <title>PDF RAG - Ingestion</title>
     <link
         rel="stylesheet"
         href="/static/style.css"
@@ -18,14 +17,20 @@
         <div class="top-bar">
             <div>
                 <h1>PDF RAG</h1>
-                <p>Local Retrieval-Augmented Generation</p>
+                <p>
+                    Document Ingestion
+                </p>
             </div>
             <div class="user-info">
                 Logged in as:
-                <strong>{{ current_user.username }}</strong>
+                <strong>
+                    {{ current_user.username }}
+                </strong>
                 |
                 Role:
-                <strong>{{ current_user.role }}</strong>
+                <strong>
+                    {{ current_user.role }}
+                </strong>
             </div>
         </div>
         <hr>
@@ -33,11 +38,9 @@
             <a href="/query">
                 Query
             </a>
-            {% if current_user.role in ["admin", "manager"] %}
-                <a href="/ingest">
-                    Ingest
-                </a>
-            {% endif %}
+            <a href="/ingest">
+                Ingest
+            </a>
             {% if current_user.role == "admin" %}
                 <a href="/admin">
                     Admin
@@ -46,21 +49,21 @@
         </nav>
         <hr>
         <section>
-            <h2>Ask a Question</h2>
-            <textarea
-                id="question"
-                rows="4"
-                placeholder="Ask something about your documents..."
-            ></textarea>
+            <h2>Ingest PDF</h2>
+            <p>
+                Select a PDF document to add it to the RAG knowledge base.
+            </p>
+            <input
+                type="file"
+                id="pdfFile"
+                accept=".pdf,application/pdf"
+            >
             <br>
-            <button id="askButton">
-                Ask
+            <button id="ingestButton">
+                Ingest
             </button>
-        </section>
-        <section>
-            <h2>Answer</h2>
-            <div id="answer">
-                No question asked yet.
+            <div id="ingestStatus">
+                No file selected.
             </div>
         </section>
         <hr>
@@ -73,6 +76,6 @@
             </button>
         </form>
     </div>
-    <script src="/static/app.js"></script>
+    <script src="/static/ingest.js"></script>
 </body>
 </html>
