@@ -59,3 +59,16 @@ JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 JWT_EXPIRE_MINUTES = int(
     os.getenv("JWT_EXPIRE_MINUTES", "60")
 )
+
+
+DOCUMENT_STORAGE_TYPE = os.getenv(
+    "DOCUMENT_STORAGE_TYPE",
+    "filesystem",
+)
+
+DOCUMENT_STORAGE_PATH = Path(
+    os.getenv(
+        "DOCUMENT_STORAGE_PATH",
+        "storage/documents",
+    )
+)

@@ -1,10 +1,12 @@
 const pdfFile = document.getElementById("pdfFile");
+const securityLevel = document.getElementById("securityLevel");
 const ingestButton = document.getElementById("ingestButton");
 const ingestStatus = document.getElementById("ingestStatus");
 
 
-ingestButton.addEventListener("click", async () => {
+ingestButton.addEventListener("click", async (event) => {
 
+    event.preventDefault();
     const file = pdfFile.files[0];
 
     if (!file) {
@@ -25,9 +27,16 @@ ingestButton.addEventListener("click", async () => {
         "file",
         file
     );
+    formData.append(
+        "security_level_id",
+        securityLevel.value
+    );
 
     try {
 
+        console.log("PDF:", file.name);
+        console.log("Security:", securityLevel.value);
+        console.log("Calling /api/ingest");
         const response = await fetch(
             "/api/ingest",
             {
@@ -46,8 +55,13 @@ ingestButton.addEventListener("click", async () => {
             const errorData =
                 await response.json();
 
+            const detail =
+                typeof errorData.detail === "string"
+                    ? errorData.detail
+                    : JSON.stringify(errorData.detail);
+
             throw new Error(
-                errorData.detail ||
+                detail ||
                 `HTTP error ${response.status}`
             );
         }

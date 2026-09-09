@@ -71,3 +71,4 @@ CREATE TABLE IF NOT EXISTS app_user (
     CONSTRAINT chk_app_user_role
         CHECK (role IN ('admin', 'user'))
 );
+

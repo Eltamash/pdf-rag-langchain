@@ -3,6 +3,7 @@
 import hashlib
 import psycopg
 
+from uuid import uuid4
 from pathlib import Path
 
 from langchain_community.document_loaders import PyPDFLoader
@@ -62,7 +63,11 @@ def file_already_ingested(file_hash: str) -> bool:
             return cursor.fetchone() is not None
 
 
-def ingest_pdf(file_path: Path) -> dict:
+def ingest_pdf(
+    file_path: Path,
+    document_id: int | None = None,
+    security_level_id: int | None = None,
+) -> dict:
     """
     Ingest one PDF file.
 
@@ -105,13 +110,29 @@ def ingest_pdf(file_path: Path) -> dict:
         chunk.metadata["file_name"] = file_path.name
         chunk.metadata["chunk_index"] = chunk_index
 
-    vector_store.add_documents(chunks)
+        if document_id is not None:
+            chunk.metadata["document_id"] = document_id
+
+        if security_level_id is not None:
+            chunk.metadata["security_level_id"] = security_level_id
+
+    #vector_store.add_documents(chunks)
+    chunk_ids = [
+        str(uuid4())
+        for _ in chunks
+    ]
+
+    vector_store.add_documents(
+        chunks,
+        ids=chunk_ids,
+    )
 
     return {
         "file_name": file_path.name,
         "status": "ingested",
         "message": "PDF successfully ingested.",
         "chunks_added": len(chunks),
+        "page_count": len(pages),
     }
 
 

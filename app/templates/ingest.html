@@ -59,13 +59,28 @@
                 accept=".pdf,application/pdf"
             >
             <br>
-            <button id="ingestButton">
-                Ingest
+            <button
+                id="ingestButton"
+                type="button"
+            >
+                Ingest PDF
             </button>
             <div id="ingestStatus">
                 No file selected.
             </div>
         </section>
+        <label for="securityLevel">Security Level</label>
+        <select
+            id="securityLevel"
+            name="security_level_id"
+            required
+        >
+            {% for level in security_levels %}
+                <option value="{{ level.security_level_id }}">
+                    {{ level.security_code }}
+                </option>
+            {% endfor %}
+        </select>
         <hr>
         <form
             action="/api/auth/logout"
